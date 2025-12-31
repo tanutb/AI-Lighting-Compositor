@@ -7,7 +7,7 @@
 A web-based tool for compositing AI-generated lighting effects onto base images. It uses Google's Gemini models to generate lighting passes (rim lights, fog, etc.).
 
 <div align="center">
-  <video src="asset/video.mp4" width="100%" controls autoplay loop muted></video>
+  <img src="asset/output.gif" width="100%" alt="App Preview">
 </div>
 
 ## Features
