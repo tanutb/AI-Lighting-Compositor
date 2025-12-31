@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Controls
     const addLayerBtn = document.getElementById('add-layer-btn');
+    const saveImageBtn = document.getElementById('save-image-btn');
     const opacitySlider = document.getElementById('opacity');
     const valOpacity = document.getElementById('val-opacity');
     const layerControls = document.getElementById('layer-controls');
@@ -42,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- State ---
     let baseImage = new Image();
-    let layers = []; // Array of objects: { id, name, image, opacity, visible, loading, error }
+    let layers = []; // Array of objects: { id, name, image, opacity, visible, loading, error, prompt }
     let activeLayerId = null;
     let apiKey = localStorage.getItem('gemini_api_key') || '';
     
@@ -50,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ICON_EYE_OPEN = `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`;
     const ICON_EYE_CLOSED = `<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-4.01.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>`;
     const ICON_TRASH = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
-    const ICON_WAND = `<svg viewBox="0 0 24 24"><path d="M7.5 5.6L10 7 8.6 4.5 10 2 7.5 3.4 5 2 6.4 4.5 5 7zM19.5 15.4L22 14l-2.5-1.4L21 10l-2.6 1.5L16 10l1.4 2.6L16 14l2.6-1.5L20 15.4zM14.34 6.12l-3.38-3.37C10.57 2.36 10.06 2 9.5 2s-1.07.36-1.46.75L2.75 8.04c-.39.39-.75.9-.75 1.46s.36 1.07.75 1.46l3.37 3.38c.39.39.9.75 1.46.75s1.07-.36 1.46-.75l5.3-5.3c.78-.78.78-2.05 0-2.84zM11.3 15l-1.66-1.66 3.63-3.63 1.66 1.66L11.3 15z"/></svg>`;
+    const ICON_REFRESH = `<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`;
 
 
     // --- Initialization ---
@@ -168,11 +169,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Layer Management ---
 
-    function addLoadingLayer(name) {
+    function addLoadingLayer(prompt) {
         const id = Date.now() + Math.random(); // Unique ID
         const newLayer = {
             id: id,
-            name: name,
+            name: prompt,
+            prompt: prompt, // Store for regeneration
             image: null,
             opacity: 100,
             visible: true,
@@ -193,8 +195,8 @@ document.addEventListener('DOMContentLoaded', () => {
         img.src = imageSrc;
         img.onload = () => {
             layer.image = img;
-            layer.src = imageSrc; // Keep URL for alignment
             layer.loading = false;
+            layer.error = false;
             
             // Auto-select if it's the only one or user preference
             selectLayer(id);
@@ -207,7 +209,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function markLayerAsError(layer, msg) {
-        layer.name += " (Failed)";
+        if(!layer.name.includes("(Failed)")) {
+             layer.name += " (Failed)";
+        }
         layer.loading = false;
         layer.error = true;
         renderLayerList();
@@ -225,45 +229,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function alignLayer(id) {
+    async function regenerateLayer(id) {
         const layer = layers.find(l => l.id === id);
-        if (!layer || layer.loading || layer.error) return;
+        if (!layer) return;
 
-        // Show loading state
-        const originalName = layer.name;
-        layer.name += " (Aligning...)";
-        renderLayerList();
-
-        try {
-            const formData = new FormData();
-            formData.append('base_filename', uploadedFilename);
-            formData.append('layer_url', layer.src);
-
-            const response = await fetch('/align-layer', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                 const d = await response.json();
-                 throw new Error(d.error || "Alignment failed");
-            }
-
-            const data = await response.json();
-            
-            // Reload image (cache bust)
-            const newSrc = data.url + "?t=" + Date.now();
-            updateLayerWithImage(id, newSrc);
-            
-            layer.name = originalName + " (Aligned)";
-            
-        } catch (e) {
-            alert("Alignment Error: " + e.message);
-            layer.name = originalName; // Reset name
-        } finally {
-            renderLayerList();
-            render();
+        // Reset state
+        layer.loading = true;
+        layer.error = false;
+        if(layer.name.includes("(Failed)")) {
+            layer.name = layer.name.replace(" (Failed)", "");
         }
+        
+        renderLayerList(); // Show spinner
+
+        // Call generation with existing ID
+        await generateSingleLayer(layer.prompt, id);
     }
 
     function renderLayerList() {
@@ -316,44 +296,40 @@ document.addEventListener('DOMContentLoaded', () => {
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'layer-actions';
             
+            // Always allow delete
+            
             if (!layer.loading) {
-                if (!layer.error) {
-                    // Align Button
-                    const btnAlign = document.createElement('button');
-                    btnAlign.className = 'icon-btn';
-                    btnAlign.innerHTML = ICON_WAND;
-                    btnAlign.title = "Auto-Align Layer";
-                    btnAlign.onclick = (e) => {
-                        e.stopPropagation();
-                        alignLayer(layer.id);
-                    };
-                    actionsDiv.appendChild(btnAlign);
+                // Regenerate Button (Replaces Magic Wand)
+                const btnRegen = document.createElement('button');
+                btnRegen.className = 'icon-btn';
+                btnRegen.innerHTML = ICON_REFRESH;
+                btnRegen.title = "Regenerate Layer";
+                btnRegen.onclick = (e) => {
+                    e.stopPropagation();
+                    regenerateLayer(layer.id);
+                };
+                actionsDiv.appendChild(btnRegen);
 
+                if (!layer.error) {
                     // Eye Button
                     const btnEye = document.createElement('button');
                     btnEye.className = 'icon-btn';
-                    // Render based on CURRENT state
                     btnEye.innerHTML = layer.visible ? ICON_EYE_OPEN : ICON_EYE_CLOSED;
                     btnEye.title = layer.visible ? "Hide Layer" : "Show Layer";
                     
-                    // DIRECT CLICK HANDLER for instant update
                     btnEye.onclick = (e) => {
-                        e.stopPropagation(); // Stop selection
-                        
-                        // 1. Toggle State
+                        e.stopPropagation(); 
                         layer.visible = !layer.visible;
-                        
-                        // 2. Immediate Icon Update (No full rebuild)
                         btnEye.innerHTML = layer.visible ? ICON_EYE_OPEN : ICON_EYE_CLOSED;
                         btnEye.title = layer.visible ? "Hide Layer" : "Show Layer";
-                        
-                        // 3. Render Canvas
                         render();
                     };
                     actionsDiv.appendChild(btnEye);
                 }
-                
-                // Delete Button
+            }
+            
+            // Delete Button (Always visible unless loading? Or allow cancel loading? Simpler to hide during load)
+            if (!layer.loading) {
                 const btnTrash = document.createElement('button');
                 btnTrash.className = 'icon-btn delete-btn';
                 btnTrash.innerHTML = ICON_TRASH;
@@ -384,10 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 layerControls.style.display = 'none';
             }
         }
-        // Update selection styles without full rebuild to avoid flicker, 
-        // OR just rebuild (list is usually short). 
-        // For simplicity and correctness with the eye button fix, 
-        // let's stick to rebuild for selection changes, but NOT for toggles.
         renderLayerList();
     }
 
@@ -408,6 +380,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
 
+    // Save Image
+    saveImageBtn.addEventListener('click', () => {
+        if (!baseImage.src) return;
+        const link = document.createElement('a');
+        link.download = `composited_${new Date().getTime()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+
     // Opacity
     opacitySlider.addEventListener('input', (e) => {
         if (!activeLayerId) return;
@@ -418,9 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (layer) {
             layer.opacity = val;
             render();
-            // Optional: Update desc in list without rebuild
-            // But opacity changes are high frequency, rebuilding is expensive.
-            // Let's just update canvas. Description update can wait or be omitted for perf.
         }
     });
 
@@ -491,7 +469,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Generation Logic (Parallel Batch) ---
 
-    // Helper for single request
     async function generateSingleLayer(promptText, tempLayerId) {
         try {
             const formData = new FormData();
@@ -505,7 +482,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                // Try to get error message
                 let errMsg = "Generation failed";
                 try {
                     const errData = await response.json();
@@ -524,7 +500,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error(err);
-            // Error Handling Logic
             const layer = layers.find(l => l.id === tempLayerId);
             if(layer) {
                 markLayerAsError(layer, err.message);
@@ -533,7 +508,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     generateConfirmBtn.addEventListener('click', async () => {
-        // Check API Key
         if (!apiKey) {
             alert("Please set your Google GenAI API Key in 'API Settings' first.");
             modalApi.classList.add('active');

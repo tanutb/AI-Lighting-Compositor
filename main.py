@@ -4,10 +4,9 @@ import asyncio
 import base64
 import mimetypes
 import time
+import sys
 from typing import Optional
 from pathlib import Path
-import cv2
-import numpy as np
 
 from fastapi import FastAPI, Request, File, UploadFile, Form, Body
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
@@ -18,26 +17,58 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 
+# Path Helper for PyInstaller
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 # Configuration
 app = FastAPI()
-UPLOAD_FOLDER = Path("static/uploads")
-GENERATED_FOLDER = Path("static/generated")
-SYSTEM_PROMPT_FILE = Path("system_prompt.txt")
 
+# Writable paths (local disk)
+if getattr(sys, 'frozen', False):
+    app_dir = Path(sys.executable).parent
+else:
+    app_dir = Path(__file__).parent
+
+UPLOAD_FOLDER = app_dir / "user_data" / "uploads"
+GENERATED_FOLDER = app_dir / "user_data" / "generated"
+SYSTEM_PROMPT_FILE = app_dir / "user_data" / "system_prompt.txt"
+
+# Create directories
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 GENERATED_FOLDER.mkdir(parents=True, exist_ok=True)
+
+# Ensure system prompt exists in user_data
+if not SYSTEM_PROMPT_FILE.exists():
+    default_prompt_path = resource_path("system_prompt.txt")
+    if os.path.exists(default_prompt_path):
+        shutil.copy(default_prompt_path, SYSTEM_PROMPT_FILE)
+    else:
+        with open(SYSTEM_PROMPT_FILE, "w") as f:
+            f.write("You are a professional cinematic lighting artist. Generate a lighting-only pass.")
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# Ensure system prompt exists
-if not SYSTEM_PROMPT_FILE.exists():
-    with open(SYSTEM_PROMPT_FILE, "w") as f:
-        f.write("You are a professional cinematic lighting artist. Generate a lighting-only pass.")
-
 # Mount Static Files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# 1. Mount writable folders specifically to match frontend routes
+app.mount("/static/uploads", StaticFiles(directory=str(UPLOAD_FOLDER)), name="uploads")
+app.mount("/static/generated", StaticFiles(directory=str(GENERATED_FOLDER)), name="generated")
+
+# 2. Mount bundled read-only static assets (css/js)
+# Note: Frontend requests /static/css/style.css.
+# We mount the bundled 'static' folder to /static. 
+# FastAPI prioritizes specific mounts, so the above two take precedence for their subpaths.
+app.mount("/static", StaticFiles(directory=resource_path("static")), name="static")
 
 # Templates
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=resource_path("templates"))
 
 # Models
 class SystemPromptUpdate(BaseModel):
@@ -87,85 +118,6 @@ async def update_system_prompt(update: SystemPromptUpdate):
     with open(SYSTEM_PROMPT_FILE, "w") as f:
         f.write(update.content)
     return JSONResponse({"status": "success"})
-
-# --- Alignment Logic ---
-
-def align_images(base_path, layer_path):
-    # Load images
-    img1 = cv2.imread(str(base_path))  # Base
-    img2 = cv2.imread(str(layer_path)) # Layer to align
-    
-    if img1 is None or img2 is None:
-        raise Exception("Could not load images for alignment")
-
-    # Convert to grayscale
-    gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-    gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-
-    # Initialize ORB detector
-    orb = cv2.ORB_create(nfeatures=5000)
-
-    # Find keypoints and descriptors
-    kp1, des1 = orb.detectAndCompute(gray1, None)
-    kp2, des2 = orb.detectAndCompute(gray2, None)
-
-    if des1 is None or des2 is None:
-         raise Exception("Could not detect features")
-
-    # Match features
-    matcher = cv2.DescriptorMatcher_create(cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING)
-    matches = matcher.match(des1, des2, None)
-
-    # Sort matches by score
-    matches = sorted(matches, key=lambda x: x.distance, reverse=False)
-
-    # Remove poor matches
-    numGoodMatches = int(len(matches) * 0.15)
-    matches = matches[:numGoodMatches]
-
-    if len(matches) < 4:
-         raise Exception("Not enough matches found for alignment")
-
-    # Extract location of good matches
-    points1 = np.zeros((len(matches), 2), dtype=np.float32)
-    points2 = np.zeros((len(matches), 2), dtype=np.float32)
-
-    for i, match in enumerate(matches):
-        points1[i, :] = kp1[match.queryIdx].pt
-        points2[i, :] = kp2[match.trainIdx].pt
-
-    # Find homography
-    h, mask = cv2.findHomography(points2, points1, cv2.RANSAC)
-
-    # Use homography
-    height, width, channels = img1.shape
-    img2_reg = cv2.warpPerspective(img2, h, (width, height))
-
-    # Overwrite the layer file with aligned version
-    cv2.imwrite(str(layer_path), img2_reg)
-
-@app.post("/align-layer")
-async def align_layer(
-    base_filename: str = Form(...),
-    layer_url: str = Form(...)
-):
-    base_path = UPLOAD_FOLDER / base_filename
-    # Extract filename from URL (/static/generated/...)
-    layer_filename = layer_url.split('/')[-1]
-    layer_path = GENERATED_FOLDER / layer_filename
-    
-    if not base_path.exists() or not layer_path.exists():
-         return JSONResponse({"error": "File not found"}, status_code=404)
-
-    try:
-        # Run alignment in thread
-        await asyncio.to_thread(align_images, base_path, layer_path)
-        # Return same URL (browser will need to cache-bust)
-        return JSONResponse({"url": layer_url, "status": "aligned"})
-    except Exception as e:
-        print(f"Alignment Error: {e}")
-        return JSONResponse({"error": str(e)}, status_code=500)
-
 
 # --- Generation Endpoint ---
 
@@ -240,6 +192,7 @@ async def generate_lighting(
             nonlocal generated_filename
             file_index = int(time.time())
             
+            # Using synchronous stream in thread
             for chunk in client.models.generate_content_stream(
                 model=model,
                 contents=contents,
@@ -262,7 +215,9 @@ async def generate_lighting(
                             guess = mimetypes.guess_extension(inline_data.mime_type)
                             if guess: ext = guess
                         
-                        fname = f"gen_{{file_index}}_{filename}{{ext}}"
+                        # Use stem to avoid double extension (e.g. image.jpg.png)
+                        base_name = Path(filename).stem
+                        fname = f"gen_{file_index}_{base_name}{ext}"
                         out_path = GENERATED_FOLDER / fname
                         
                         save_binary_file(out_path, data_buffer)
@@ -283,4 +238,8 @@ async def generate_lighting(
 
 if __name__ == '__main__':
     import uvicorn
+    # Multiprocessing support for PyInstaller
+    import multiprocessing
+    multiprocessing.freeze_support()
+    
     uvicorn.run(app, host="127.0.0.1", port=8000)
