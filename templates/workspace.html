@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Lighting Compositor - Workspace</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Store filename for JS -->
+    <script>
+        const uploadedFilename = "{{ filename }}";
+    </script>
+
+    <div class="app-container">
+        <!-- Top Menu Bar -->
+        <header class="top-bar">
+            <div class="menu-item" onclick="window.location.href='/'">File</div>
+            <div class="menu-item">View</div>
+            <div class="menu-item">Render</div>
+            <div class="menu-item" id="btn-sys-prompt">System Prompt</div>
+            <div class="menu-item" id="btn-api-key">API Settings</div>
+            <div class="menu-item">Help</div>
+        </header>
+
+        <div class="main-workspace">
+            <!-- Left Panel (Controls) -->
+            <aside class="left-panel" id="left-panel">
+                <div class="resizer resizer-left" id="resizer-left"></div>
+                
+                <div class="panel-section">
+                    <div class="panel-header">AI Controls</div>
+                    <div class="panel-content">
+                        <button id="add-layer-btn" class="primary-btn">+ Add Layer</button>
+                    </div>
+                </div>
+
+
+
+            </aside>
+
+            <!-- Main Preview Canvas -->
+            <main class="viewport">
+                <div class="canvas-container">
+                    <canvas id="main-canvas"></canvas>
+                    <div class="loading-overlay" id="loading-overlay">
+                        <div class="spinner"></div>
+                        <span id="loading-text">Processing...</span>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Panel (Layers / Previews) -->
+             <aside class="right-panel" id="right-panel">
+                <div class="resizer resizer-right" id="resizer-right"></div>
+                <div class="panel-section">
+                    <div class="panel-header">Generated Layers</div>
+                    <div class="panel-content" id="layer-list">
+                        <div class="empty-state">No layers added.</div>
+                    </div>
+                </div>
+                
+                <!-- Opacity Control (Moved here) -->
+                <div class="panel-section" id="layer-controls" style="display:none;">
+                    <div class="panel-header">Layer Adjustments</div>
+                    <div class="panel-content">
+                        <div class="control-group">
+                            <label>Opacity <span id="val-opacity">100%</span></label>
+                            <input type="range" id="opacity" min="0" max="100" value="100">
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Bottom Panel -->
+        <footer class="bottom-panel">
+            <div class="timeline-controls">
+                <span>Timeline</span>
+                <div class="layer-track active" id="base-layer-track" style="display:flex; align-items:center;">
+                    <span style="margin-right:8px;">Base: {{ filename }}</span>
+                    <button class="icon-btn" id="base-layer-vis-btn" title="Toggle Base Image Visibility">
+                        <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    
+    <!-- API Key Modal -->
+    <div class="modal-backdrop" id="modal-api">
+        <div class="modal">
+            <div class="modal-header">API Settings</div>
+            <div class="modal-body">
+                <div class="control-group">
+                    <label>Nanobanana API Key</label>
+                    <input type="password" id="api-key-input" placeholder="Enter your API Key" class="text-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn" id="close-api-btn">Close</button>
+                <button class="primary-btn" id="save-api-btn">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Prompt Modal -->
+    <div class="modal-backdrop" id="modal-sys-prompt">
+        <div class="modal">
+            <div class="modal-header">System Prompt Editor</div>
+            <div class="modal-body">
+                <p style="font-size: 11px; margin-bottom: 10px; color: #999;">Instructions for the AI Model's lighting behavior.</p>
+                <div class="control-group">
+                    <textarea id="sys-prompt-input" rows="10" class="text-area" placeholder="Loading..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn" id="close-sys-btn">Cancel</button>
+                <button class="primary-btn" id="save-sys-btn">Save Prompt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generate Prompt Modal -->
+    <div class="modal-backdrop" id="modal-prompt">
+        <div class="modal">
+            <div class="modal-header">New Light Layer</div>
+            <div class="modal-body">
+                <div class="control-group">
+                    <label>Prompt Description</label>
+                    <textarea id="prompt-input" rows="4" class="text-area" placeholder="Describe the lighting (e.g., 'soft warm backlight', 'harsh rim light')..."></textarea>
+                </div>
+                <div class="tags-container">
+                    <span class="tag" onclick="insertPrompt('side light')">side light</span>
+                    <span class="tag" onclick="insertPrompt('back light')">back light</span>
+                    <span class="tag" onclick="insertPrompt('harsh light')">harsh light</span>
+                    <span class="tag" onclick="insertPrompt('volumetric fog')">volumetric fog</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn" id="cancel-prompt-btn">Cancel</button>
+                <button class="primary-btn" id="generate-confirm-btn">Generate</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', path='js/main.js') }}"></script>
+</body>
+</html>

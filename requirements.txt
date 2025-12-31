@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+jinja2
+aiofiles
+google-genai
+opencv-python-headless
+numpy
+pydantic
