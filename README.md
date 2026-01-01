@@ -42,7 +42,6 @@ A web-based tool for compositing AI-generated lighting effects onto base images.
 
 1.  **Upload**: Drag and drop your image onto the upload page.
 2.  **API Key**: Click "API Settings" in the top menu and enter your **Google Gemini API Key**.
-    *   **SECURITY WARNING**: **DO NOT LEAK YOUR API KEY.** This key is stored in your browser's Local Storage. Do not commit it to version control or share screenshots of the settings modal.
 3.  **Add Layer**: Click "+ Add Layer", enter a prompt (e.g., "blue cinematic fog"), and click Generate.
 4.  **Refine**: 
     *   Use the **Regenerate (Refresh Icon)** button on a layer to try a new variation.
