@@ -2,3 +2,6 @@
 /static/uploads
 /build
 /dist
+/.agent
+/.claude
+/user_data

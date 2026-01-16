@@ -15,7 +15,7 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    user-select: none; 
+    user-select: none;
 }
 
 body {
@@ -24,12 +24,15 @@ body {
     color: var(--text-main);
     height: 100vh;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .app-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    contain: layout style;
 }
 
 /* Top Bar */
@@ -42,11 +45,13 @@ body {
     font-size: 13px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    contain: layout style;
 }
 
 .menu-item {
     margin-right: 15px;
     cursor: pointer;
+    transition: color 0.15s ease;
 }
 .menu-item:hover {
     color: var(--text-bright);
@@ -62,10 +67,11 @@ body {
     display: flex;
     flex: 1;
     overflow: hidden;
-    position: relative; /* For absolute resizers if needed, though flex works */
+    position: relative;
+    contain: layout;
 }
 
-/* Left Panel */
+/* Panels - GPU accelerated transforms */
 .left-panel {
     width: 250px;
     min-width: 200px;
@@ -77,9 +83,11 @@ body {
     overflow-y: auto;
     flex-shrink: 0;
     position: relative;
+    will-change: transform, width;
+    transform: translateZ(0);
+    contain: layout style;
 }
 
-/* Right Panel */
 .right-panel {
     width: 280px;
     min-width: 200px;
@@ -91,6 +99,9 @@ body {
     overflow-y: auto;
     flex-shrink: 0;
     position: relative;
+    will-change: transform, width;
+    transform: translateZ(0);
+    contain: layout style;
 }
 
 /* Resizers */
@@ -102,7 +113,7 @@ body {
     top: 0;
     bottom: 0;
     z-index: 10;
-    transition: background-color 0.2s;
+    transition: background-color 0.15s ease;
 }
 .resizer:hover, .resizer.resizing {
     background-color: var(--accent);
@@ -114,9 +125,9 @@ body {
     left: 0;
 }
 
-
 .panel-section {
     border-bottom: 1px solid var(--border);
+    contain: layout style;
 }
 
 .panel-header {
@@ -160,6 +171,7 @@ select, .text-input, .text-area {
     border-radius: 2px;
     font-family: inherit;
     font-size: 12px;
+    transition: border-color 0.15s ease;
 }
 .text-input:focus, .text-area:focus {
     border-color: var(--accent);
@@ -178,6 +190,7 @@ select, .text-input, .text-area {
     font-weight: 500;
     margin-bottom: 10px;
     font-size: 12px;
+    transition: background-color 0.15s ease;
 }
 .primary-btn {
     background-color: var(--accent);
@@ -194,7 +207,7 @@ select, .text-input, .text-area {
     background-color: #555;
 }
 
-/* Viewport */
+/* Viewport - optimized for canvas rendering */
 .viewport {
     flex: 1;
     background-color: #111;
@@ -203,25 +216,32 @@ select, .text-input, .text-area {
     align-items: center;
     position: relative;
     overflow: hidden;
+    contain: strict;
 }
 
 .canvas-container {
     position: relative;
-    box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    max-width: 90%;
-    max-height: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    contain: layout;
 }
 
+/* Canvas - GPU accelerated */
 canvas {
     display: block;
     background: repeating-conic-gradient(#222 0% 25%, #333 0% 50%) 50% / 20px 20px;
-    max-width: 100%;
-    max-height: 100%;
-    height: auto; 
-    width: auto;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    transform-origin: center center;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
-/* Layer List Items */
+/* Layer List - optimized */
 .layer-item {
     display: flex;
     align-items: center;
@@ -231,7 +251,8 @@ canvas {
     border: 1px solid var(--border);
     border-radius: 4px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    contain: layout style;
 }
 .layer-item:hover {
     background-color: var(--highlight);
@@ -240,22 +261,57 @@ canvas {
     border-color: var(--accent);
     background-color: #333333;
 }
+
+/* Layer left section */
+.layer-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.layer-thumb-container {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    border: 1px solid #555;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.layer-thumb-container.error {
+    border-color: #ff5555;
+}
+
 .layer-thumb {
     width: 40px;
     height: 40px;
-    background-color: black;
-    margin-right: 10px;
     object-fit: cover;
-    border: 1px solid #555;
-    flex-shrink: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: block;
 }
+
+.layer-thumb-error {
+    width: 40px;
+    height: 40px;
+    background: #330000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ff5555;
+    font-size: 20px;
+    font-weight: bold;
+}
+
 .layer-info {
     flex: 1;
     font-size: 12px;
     overflow: hidden;
+    min-width: 0;
 }
 .layer-name {
     font-weight: 600;
@@ -272,33 +328,36 @@ canvas {
     font-size: 10px;
 }
 
-/* Layer Spinner */
+/* Layer Spinner - GPU accelerated */
 .mini-spinner {
     width: 20px;
     height: 20px;
     border: 2px solid rgba(255,255,255,0.3);
     border-radius: 50%;
     border-top-color: #fff;
-    animation: spin 1s ease-in-out infinite;
+    animation: spin 0.8s linear infinite;
+    will-change: transform;
 }
 
-/* Layer Actions (Eye Icon) */
+/* Layer Actions */
 .layer-actions {
     display: flex;
     align-items: center;
     margin-left: 10px;
     gap: 4px;
+    flex-shrink: 0;
 }
 .icon-btn {
     background: none;
     border: none;
     cursor: pointer;
     color: #999;
-    padding: 2px;
+    padding: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
+    transition: color 0.15s ease, background-color 0.15s ease;
 }
 .icon-btn:hover {
     color: var(--text-bright);
@@ -312,6 +371,7 @@ canvas {
     width: 16px;
     height: 16px;
     fill: currentColor;
+    display: block;
 }
 
 .empty-state {
@@ -323,13 +383,16 @@ canvas {
 
 /* Bottom Panel */
 .bottom-panel {
-    height: 40px; 
+    height: 40px;
     background-color: var(--bg-panel);
     border-top: 1px solid var(--border);
     padding: 0 10px;
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    will-change: transform;
+    transform: translateZ(0);
+    contain: layout style;
 }
 
 .timeline-controls {
@@ -345,9 +408,10 @@ canvas {
     border-radius: 2px;
     border-left: 3px solid var(--accent);
     font-size: 11px;
+    transition: opacity 0.15s ease;
 }
 
-/* Modals */
+/* Modals - GPU accelerated */
 .modal-backdrop {
     position: fixed;
     top: 0;
@@ -361,7 +425,9 @@ canvas {
     z-index: 100;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s ease;
+    will-change: opacity;
+    backface-visibility: hidden;
 }
 .modal-backdrop.active {
     opacity: 1;
@@ -377,6 +443,7 @@ canvas {
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
+    transform: translateZ(0);
 }
 
 .modal-header {
@@ -415,6 +482,7 @@ canvas {
     font-size: 10px;
     cursor: pointer;
     color: var(--text-main);
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 .tag:hover {
     background: var(--highlight);
@@ -423,4 +491,130 @@ canvas {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* Preview Mode - GPU accelerated transitions */
+body.preview-mode .left-panel,
+body.preview-mode .right-panel {
+    transform: scaleX(0) translateZ(0);
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    transition: transform 0.3s ease, width 0.3s ease;
+}
+
+body.preview-mode .bottom-panel {
+    transform: translateY(100%) translateZ(0);
+    height: 0;
+    padding: 0;
+    border: none;
+    transition: transform 0.3s ease;
+}
+
+body.preview-mode .top-bar {
+    display: none;
+}
+
+body.preview-mode .canvas-container {
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: none;
+}
+
+/* Close Preview Button */
+.close-preview-btn {
+    display: none;
+}
+
+body.preview-mode .close-preview-btn {
+    display: block;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.15s ease;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+body.preview-mode .close-preview-btn:hover {
+    background: rgba(0,0,0,0.9);
+}
+
+/* Canvas Controls - Photo Editor Style */
+.canvas-controls {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%) translateZ(0);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-panel);
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    z-index: 20;
+    will-change: transform;
+}
+
+.zoom-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 2px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.zoom-level {
+    font-size: 11px;
+    min-width: 45px;
+    text-align: center;
+    color: var(--text-main);
+}
+
+/* Scrollbar styling for better performance */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--highlight);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

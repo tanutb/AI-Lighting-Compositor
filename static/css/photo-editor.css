@@ -1,0 +1,918 @@
+/* ==========================================
+   Photo Editor Styles
+   Matching workspace theme with enhancements
+   ========================================== */
+
+:root {
+    /* Colors matching workspace theme */
+    --bg-dark: #1e1e1e;
+    --bg-panel: #252526;
+    --bg-header: #333333;
+    --text-main: #cccccc;
+    --text-bright: #ffffff;
+    --accent: #007fd4;
+    --border: #3e3e42;
+    --input-bg: #3c3c3c;
+    --highlight: #444444;
+    --error: #ff5555;
+    
+    /* Sizes */
+    --toolbar-width: 56px;
+    --panel-width: 280px;
+    --top-menu-height: 30px;
+    --status-bar-height: 28px;
+    
+    /* Effects */
+    --transition-fast: 0.15s ease;
+    --transition-smooth: 0.25s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* ==========================================
+   Main Layout
+   ========================================== */
+
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+.main-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ==========================================
+   Top Menu Bar
+   ========================================== */
+
+.top-menu {
+    height: var(--top-menu-height);
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.menu-left, .menu-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.logo {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 15px;
+}
+
+.menu-item {
+    padding: 4px 10px;
+    font-size: 13px;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.menu-item:hover {
+    color: var(--text-bright);
+}
+
+.export-btn {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.export-btn:hover {
+    background: #0060a0;
+}
+
+/* ==========================================
+   Left Toolbar - Scrollable
+   ========================================== */
+
+.toolbar {
+    width: var(--toolbar-width);
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Custom scrollbar for toolbar */
+.toolbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.toolbar::-webkit-scrollbar-thumb {
+    background: var(--highlight);
+    border-radius: 2px;
+}
+
+.toolbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tool-group {
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+}
+
+.tool-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 8px;
+}
+
+.tool-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 6px 4px;
+    background: transparent;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    color: var(--text-main);
+    position: relative;
+}
+
+.tool-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.tool-label {
+    font-size: 8px;
+    font-weight: 500;
+    opacity: 0.7;
+}
+
+.tool-btn:hover {
+    background: var(--highlight);
+    color: var(--text-bright);
+}
+
+.tool-btn.active {
+    background: var(--input-bg);
+    color: var(--accent);
+    border-left: 2px solid var(--accent);
+}
+
+/* ==========================================
+   Canvas Area
+   ========================================== */
+
+.canvas-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: #111;
+    overflow: hidden;
+}
+
+.canvas-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 20px;
+    position: relative;
+}
+
+#main-canvas {
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    background: repeating-conic-gradient(#222 0% 25%, #333 0% 50%) 50% / 20px 20px;
+    cursor: crosshair;
+}
+
+.canvas-controls {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-panel);
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+.zoom-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 2px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.zoom-level {
+    font-size: 11px;
+    min-width: 45px;
+    text-align: center;
+    color: var(--text-main);
+}
+
+/* ==========================================
+   Drop Zone
+   ========================================== */
+
+.drop-zone {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(30, 30, 30, 0.95);
+    z-index: 50;
+    cursor: pointer;
+}
+
+.drop-zone.hidden {
+    display: none !important;
+}
+
+.drop-zone.drag-over {
+    background: rgba(0, 127, 212, 0.1);
+}
+
+.drop-content {
+    text-align: center;
+    padding: 60px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    transition: var(--transition-smooth);
+}
+
+.drop-zone.drag-over .drop-content {
+    border-color: var(--accent);
+}
+
+.drop-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.drop-content h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--text-bright);
+}
+
+.drop-content p {
+    color: var(--text-main);
+    font-size: 12px;
+}
+
+/* ==========================================
+   Right Properties Panel
+   ========================================== */
+
+.properties-panel {
+    width: var(--panel-width);
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.panel-section {
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-header {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    background: #2d2d30;
+}
+
+.panel-content {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.hint-text {
+    font-size: 11px;
+    color: #777;
+    text-align: center;
+}
+
+/* ==========================================
+   Control Elements
+   ========================================== */
+
+.control-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-row label {
+    font-size: 11px;
+    color: var(--text-main);
+    min-width: 65px;
+}
+
+.control-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--input-bg);
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.control-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.value-display {
+    font-size: 10px;
+    color: #999;
+    min-width: 35px;
+    text-align: right;
+    font-family: 'Consolas', monospace;
+}
+
+.num-input {
+    width: 70px;
+    padding: 6px 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-bright);
+    font-size: 12px;
+    text-align: center;
+}
+
+.num-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.unit {
+    font-size: 11px;
+    color: #999;
+}
+
+.text-input {
+    flex: 1;
+    padding: 6px 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-bright);
+    font-size: 12px;
+}
+
+.text-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.select-input {
+    flex: 1;
+    padding: 6px 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-bright);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.select-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.checkbox-row {
+    gap: 8px;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.checkbox-row label {
+    min-width: auto;
+    cursor: pointer;
+}
+
+.color-row input[type="color"] {
+    width: 35px;
+    height: 26px;
+    padding: 2px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.color-hex {
+    font-size: 10px;
+    font-family: 'Consolas', monospace;
+    color: #999;
+}
+
+/* ==========================================
+   Buttons
+   ========================================== */
+
+.action-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--accent);
+    border: none;
+    border-radius: 2px;
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.action-btn:hover {
+    background: #0060a0;
+}
+
+.action-btn.secondary {
+    background: var(--highlight);
+    color: var(--text-main);
+}
+
+.action-btn.secondary:hover {
+    background: #555;
+}
+
+/* ==========================================
+   Filter Grid
+   ========================================== */
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.filter-btn {
+    padding: 8px 6px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-main);
+    font-size: 10px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.filter-btn:hover {
+    background: var(--highlight);
+    color: var(--text-bright);
+}
+
+.filter-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+/* ==========================================
+   Layer List
+   ========================================== */
+
+.layer-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.layer-item:hover {
+    background: var(--highlight);
+}
+
+.layer-item.active {
+    border-color: var(--accent);
+}
+
+.layer-thumb {
+    width: 32px;
+    height: 32px;
+    background: #222;
+    margin-right: 8px;
+    border: 1px solid #444;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.layer-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.layer-name {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.layer-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+}
+
+.icon-btn:hover {
+    color: var(--text-bright);
+    background: rgba(255,255,255,0.1);
+}
+
+.icon-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+/* ==========================================
+   History Panel
+   ========================================== */
+
+.history-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.history-item {
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text-main);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.history-item:hover {
+    background: var(--highlight);
+}
+
+.history-item.active {
+    background: var(--input-bg);
+    color: var(--accent);
+}
+
+.history-item::before {
+    content: '○';
+    font-size: 6px;
+}
+
+.history-item.active::before {
+    content: '●';
+    color: var(--accent);
+}
+
+/* ==========================================
+   Status Bar
+   ========================================== */
+
+.status-bar {
+    height: var(--status-bar-height);
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    font-size: 11px;
+    color: #999;
+    flex-shrink: 0;
+}
+
+.status-left, .status-center, .status-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#status-text {
+    color: var(--accent);
+}
+
+/* ==========================================
+   Crop Overlay
+   ========================================== */
+
+.crop-overlay {
+    position: absolute;
+    border: 2px dashed var(--accent);
+    background: rgba(0, 127, 212, 0.1);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.crop-handles {
+    position: absolute;
+    inset: -5px;
+}
+
+.crop-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border: 1px solid white;
+    pointer-events: all;
+}
+
+.crop-handle.nw { top: 0; left: 0; cursor: nwse-resize; }
+.crop-handle.ne { top: 0; right: 0; cursor: nesw-resize; }
+.crop-handle.sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.crop-handle.se { bottom: 0; right: 0; cursor: nwse-resize; }
+
+/* ==========================================
+   Modal
+   ========================================== */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    width: 380px;
+    max-width: 90vw;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-bright);
+    border-bottom: 1px solid var(--border);
+}
+
+.modal-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-footer .action-btn {
+    width: auto;
+    padding: 8px 16px;
+}
+
+/* ==========================================
+   Scrollbar Styles
+   ========================================== */
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--highlight);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ==========================================
+   Responsive
+   ========================================== */
+
+@media (max-width: 900px) {
+    .properties-panel {
+        width: 220px;
+    }
+    
+    .toolbar {
+        width: 48px;
+    }
+    
+    .tool-label {
+        display: none;
+    }
+}
+
+/* ==========================================
+   Text Tool Overlay
+   ========================================== */
+
+#text-overlay-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 20;
+    overflow: hidden;
+    display: none;
+}
+
+.text-box-editor {
+    position: absolute;
+    border: 2px dashed var(--accent);
+    background: rgba(0, 0, 0, 0.2);
+    pointer-events: auto;
+    cursor: move;
+    min-width: 50px;
+    min-height: 30px;
+    display: flex;
+    flex-direction: column;
+}
+
+.text-box-content {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    resize: none;
+    outline: none;
+    padding: 5px;
+    overflow: hidden;
+    white-space: pre-wrap;
+    line-height: 1.2;
+}
+
+.text-box-content::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.text-box-controls {
+    position: absolute;
+    top: -35px;
+    right: 0;
+    display: flex;
+    gap: 5px;
+    background: var(--bg-panel);
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+.text-control-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: var(--input-bg);
+    color: var(--text-main);
+    border-radius: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.text-control-btn:hover {
+    background: var(--highlight);
+    color: var(--text-bright);
+}
+
+.text-control-btn.apply {
+    color: #4caf50;
+}
+
+.text-control-btn.cancel {
+    color: #ff5555;
+}
+
+/* Resize handles for text box */
+.text-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: white;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    z-index: 10;
+}
+
+.text-handle.nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.text-handle.ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.text-handle.sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.text-handle.se { bottom: -4px; right: -4px; cursor: nwse-resize; }

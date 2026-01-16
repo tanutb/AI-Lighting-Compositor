@@ -1,75 +1,111 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- UI Elements ---
-    const canvas = document.getElementById('main-canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Controls
-    const addLayerBtn = document.getElementById('add-layer-btn');
-    const saveImageBtn = document.getElementById('save-image-btn');
-    const opacitySlider = document.getElementById('opacity');
-    const valOpacity = document.getElementById('val-opacity');
-    const layerControls = document.getElementById('layer-controls');
-    
-    // Layer List
-    const layerList = document.getElementById('layer-list');
-    
-    // Base Layer Visibility
-    const baseLayerVisBtn = document.getElementById('base-layer-vis-btn');
-    let baseLayerVisible = true;
-    
-    // Modals
-    const modalPrompt = document.getElementById('modal-prompt');
-    const promptInput = document.getElementById('prompt-input');
-    const cancelPromptBtn = document.getElementById('cancel-prompt-btn');
-    const generateConfirmBtn = document.getElementById('generate-confirm-btn');
-    
-    const btnApiKey = document.getElementById('btn-api-key');
-    const modalApi = document.getElementById('modal-api');
-    const apiKeyInput = document.getElementById('api-key-input');
-    const closeApiBtn = document.getElementById('close-api-btn');
-    const saveApiBtn = document.getElementById('save-api-btn');
+    'use strict';
 
-    const btnSysPrompt = document.getElementById('btn-sys-prompt');
-    const modalSysPrompt = document.getElementById('modal-sys-prompt');
-    const sysPromptInput = document.getElementById('sys-prompt-input');
-    const closeSysBtn = document.getElementById('close-sys-btn');
-    const saveSysBtn = document.getElementById('save-sys-btn');
+    // --- Performance: Cache DOM References ---
+    const DOM = {
+        canvas: document.getElementById('main-canvas'),
+        canvasContainer: document.getElementById('canvas-container'),
+        addLayerBtn: document.getElementById('add-layer-btn'),
+        saveImageBtn: document.getElementById('save-image-btn'),
+        opacitySlider: document.getElementById('opacity'),
+        valOpacity: document.getElementById('val-opacity'),
+        layerControls: document.getElementById('layer-controls'),
+        layerList: document.getElementById('layer-list'),
+        baseLayerVisBtn: document.getElementById('base-layer-vis-btn'),
+        modalPrompt: document.getElementById('modal-prompt'),
+        promptInput: document.getElementById('prompt-input'),
+        cancelPromptBtn: document.getElementById('cancel-prompt-btn'),
+        generateConfirmBtn: document.getElementById('generate-confirm-btn'),
+        btnApiKey: document.getElementById('btn-api-key'),
+        modalApi: document.getElementById('modal-api'),
+        apiKeyInput: document.getElementById('api-key-input'),
+        closeApiBtn: document.getElementById('close-api-btn'),
+        saveApiBtn: document.getElementById('save-api-btn'),
+        btnSysPrompt: document.getElementById('btn-sys-prompt'),
+        modalSysPrompt: document.getElementById('modal-sys-prompt'),
+        sysPromptInput: document.getElementById('sys-prompt-input'),
+        closeSysBtn: document.getElementById('close-sys-btn'),
+        saveSysBtn: document.getElementById('save-sys-btn'),
+        btnViewMode: document.getElementById('btn-view-mode'),
+        leftPanel: document.getElementById('left-panel'),
+        rightPanel: document.getElementById('right-panel'),
+        resizerLeft: document.getElementById('resizer-left'),
+        resizerRight: document.getElementById('resizer-right'),
+        zoomInBtn: document.getElementById('zoom-in-btn'),
+        zoomOutBtn: document.getElementById('zoom-out-btn'),
+        zoomFitBtn: document.getElementById('zoom-fit-btn'),
+        zoomLevelDisp: document.getElementById('zoom-level-disp'),
+        baseLayerTrack: document.getElementById('base-layer-track')
+    };
 
-    // Panels
-    const leftPanel = document.getElementById('left-panel');
-    const rightPanel = document.getElementById('right-panel');
-    const resizerLeft = document.getElementById('resizer-left');
-    const resizerRight = document.getElementById('resizer-right');
+    // Get 2D context with performance hints
+    const ctx = DOM.canvas.getContext('2d', {
+        alpha: false,
+        desynchronized: true,
+        willReadFrequently: false
+    });
 
     // --- State ---
     let baseImage = new Image();
-    let layers = []; // Array of objects: { id, name, image, opacity, visible, loading, error, prompt }
+    baseImage.crossOrigin = "anonymous";
+    let layers = [];
+    window.workspaceLayers = layers;
+
     let activeLayerId = null;
     let apiKey = localStorage.getItem('gemini_api_key') || '';
-    
-    // --- Icons ---
-    const ICON_EYE_OPEN = `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`;
-    const ICON_EYE_CLOSED = `<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-4.01.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>`;
-    const ICON_TRASH = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
-    const ICON_REFRESH = `<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`;
+    let zoomLevel = 1;
+    let isPreviewMode = false;
+    let baseLayerVisible = true;
 
+    // --- Performance: Render State ---
+    let renderPending = false;
+    let layerListDirty = false;
+    let lastRenderTime = 0;
+    const MIN_RENDER_INTERVAL = 16; // ~60fps cap
+
+    // --- Icons (Template literals, created once) ---
+    const ICONS = {
+        eyeOpen: `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`,
+        eyeClosed: `<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-4.01.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>`,
+        trash: `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
+        refresh: `<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`
+    };
+
+    // --- Performance: Throttle & Debounce Utilities ---
+    function throttle(fn, delay) {
+        let lastCall = 0;
+        return function(...args) {
+            const now = performance.now();
+            if (now - lastCall >= delay) {
+                lastCall = now;
+                fn.apply(this, args);
+            }
+        };
+    }
+
+    function debounce(fn, delay) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
 
     // --- Initialization ---
-
     function updateApiStatus() {
         if (!apiKey) {
-            btnApiKey.classList.add('warning');
-            btnApiKey.title = "API Key Missing";
-            btnApiKey.style.color = '#ff6b6b';
+            DOM.btnApiKey.classList.add('warning');
+            DOM.btnApiKey.title = "API Key Missing";
+            DOM.btnApiKey.style.color = '#ff6b6b';
         } else {
-            btnApiKey.classList.remove('warning');
-            btnApiKey.title = "API Settings";
-            btnApiKey.style.color = '';
+            DOM.btnApiKey.classList.remove('warning');
+            DOM.btnApiKey.title = "API Settings";
+            DOM.btnApiKey.style.color = '';
         }
     }
 
     if (apiKey) {
-        apiKeyInput.value = apiKey;
+        DOM.apiKeyInput.value = apiKey;
     }
     updateApiStatus();
 
@@ -77,104 +113,182 @@ document.addEventListener('DOMContentLoaded', () => {
         baseImage.src = `/static/uploads/${uploadedFilename}`;
         baseImage.onload = () => {
             resizeCanvasToImage();
+            fitToScreen();
+            scheduleRender();
         };
     }
 
     function resizeCanvasToImage() {
         if (!baseImage.src) return;
-        canvas.width = baseImage.naturalWidth;
-        canvas.height = baseImage.naturalHeight;
-        render();
+        DOM.canvas.width = baseImage.naturalWidth;
+        DOM.canvas.height = baseImage.naturalHeight;
     }
 
-    // --- Rendering Engine ---
+    // --- Zoom Functions (GPU Accelerated) ---
+    function setZoom(newZoom) {
+        zoomLevel = Math.max(0.1, Math.min(5, newZoom));
+        // Use transform3d for GPU acceleration
+        DOM.canvas.style.transform = `scale3d(${zoomLevel}, ${zoomLevel}, 1)`;
+        DOM.zoomLevelDisp.textContent = Math.round(zoomLevel * 100) + '%';
+    }
 
-    function render() {
+    function fitToScreen() {
+        if (!DOM.canvasContainer || !DOM.canvas.width || DOM.canvas.width === 0) return;
+
+        const padding = 80;
+        const availableWidth = DOM.canvasContainer.clientWidth - padding;
+        const availableHeight = DOM.canvasContainer.clientHeight - padding;
+
+        const scaleX = availableWidth / DOM.canvas.width;
+        const scaleY = availableHeight / DOM.canvas.height;
+        const scale = Math.min(scaleX, scaleY, 1);
+
+        setZoom(scale);
+    }
+
+    // --- Optimized Rendering Engine ---
+    function drawLayers() {
         if (!baseImage.complete) return;
-        const width = canvas.width;
-        const height = canvas.height;
 
-        ctx.clearRect(0, 0, width, height);
+        const width = DOM.canvas.width;
+        const height = DOM.canvas.height;
 
-        // 1. Draw Base (If visible)
+        // Clear with fillRect (faster than clearRect for opaque canvas)
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw Base (If visible)
         if (baseLayerVisible) {
             ctx.globalCompositeOperation = 'source-over';
             ctx.globalAlpha = 1;
             ctx.drawImage(baseImage, 0, 0);
         }
 
-        // 2. Draw Layers
-        layers.forEach(layer => {
-            // Skip invisible or loading layers or failed layers
-            if (!layer.visible || layer.loading || layer.error) return;
-            
-            // Default to Screen mode for lighting, fallback to source-over
-            ctx.globalCompositeOperation = 'screen';
-            ctx.globalAlpha = layer.opacity / 100;
-            // SCALE: Draw image to fill canvas (matching base image)
-            ctx.drawImage(layer.image, 0, 0, width, height);
-        });
+        // Draw Layers - batch similar operations
+        const visibleLayers = layers.filter(l => l.visible && !l.loading && !l.error && l.image);
 
-        // Reset
+        if (visibleLayers.length > 0) {
+            ctx.globalCompositeOperation = 'screen';
+
+            for (let i = 0; i < visibleLayers.length; i++) {
+                const layer = visibleLayers[i];
+                ctx.globalAlpha = layer.opacity / 100;
+                ctx.drawImage(layer.image, 0, 0, width, height);
+            }
+        }
+
+        // Reset state
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
     }
 
-    // --- Panel Resizing ---
-    
+    function scheduleRender() {
+        if (renderPending) return;
+
+        const now = performance.now();
+        const elapsed = now - lastRenderTime;
+
+        if (elapsed >= MIN_RENDER_INTERVAL) {
+            renderPending = true;
+            requestAnimationFrame(() => {
+                drawLayers();
+                renderPending = false;
+                lastRenderTime = performance.now();
+            });
+        } else {
+            renderPending = true;
+            setTimeout(() => {
+                requestAnimationFrame(() => {
+                    drawLayers();
+                    renderPending = false;
+                    lastRenderTime = performance.now();
+                });
+            }, MIN_RENDER_INTERVAL - elapsed);
+        }
+    }
+
+    // --- Preview Mode ---
+    function togglePreviewMode() {
+        isPreviewMode = !isPreviewMode;
+
+        if (isPreviewMode) {
+            document.body.classList.add('preview-mode');
+
+            if (!document.getElementById('close-preview-btn')) {
+                const btn = document.createElement('div');
+                btn.id = 'close-preview-btn';
+                btn.className = 'close-preview-btn';
+                btn.textContent = 'Close Preview (Esc)';
+                btn.onclick = togglePreviewMode;
+                document.body.appendChild(btn);
+            }
+
+            scheduleRender();
+            requestAnimationFrame(() => {
+                requestAnimationFrame(fitToScreen);
+            });
+        } else {
+            document.body.classList.remove('preview-mode');
+            requestAnimationFrame(() => {
+                requestAnimationFrame(fitToScreen);
+            });
+        }
+    }
+
+    // --- Panel Resizing (Optimized) ---
     function initResizers() {
-        // Left Panel
-        resizerLeft.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            document.addEventListener('mousemove', resizeLeft);
-            document.addEventListener('mouseup', stopResizeLeft);
-            resizerLeft.classList.add('resizing');
-        });
-        
-        function resizeLeft(e) {
-            const newWidth = e.clientX;
-            if (newWidth > 150 && newWidth < 600) {
-                leftPanel.style.width = newWidth + 'px';
+        let isResizing = false;
+        let currentResizer = null;
+
+        function onMouseMove(e) {
+            if (!isResizing) return;
+
+            if (currentResizer === 'left') {
+                const newWidth = Math.min(600, Math.max(150, e.clientX));
+                DOM.leftPanel.style.width = newWidth + 'px';
+            } else if (currentResizer === 'right') {
+                const newWidth = Math.min(600, Math.max(150, window.innerWidth - e.clientX));
+                DOM.rightPanel.style.width = newWidth + 'px';
             }
         }
-        function stopResizeLeft() {
-            document.removeEventListener('mousemove', resizeLeft);
-            document.removeEventListener('mouseup', stopResizeLeft);
-            resizerLeft.classList.remove('resizing');
+
+        function onMouseUp() {
+            if (!isResizing) return;
+            isResizing = false;
+            currentResizer = null;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            DOM.resizerLeft.classList.remove('resizing');
+            DOM.resizerRight.classList.remove('resizing');
         }
 
-        // Right Panel
-        resizerRight.addEventListener('mousedown', (e) => {
+        DOM.resizerLeft.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            document.addEventListener('mousemove', resizeRight);
-            document.addEventListener('mouseup', stopResizeRight);
-            resizerRight.classList.add('resizing');
+            isResizing = true;
+            currentResizer = 'left';
+            DOM.resizerLeft.classList.add('resizing');
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
         });
 
-        function resizeRight(e) {
-            // Right panel width = Window Width - Mouse X
-            const newWidth = window.innerWidth - e.clientX;
-            if (newWidth > 150 && newWidth < 600) {
-                rightPanel.style.width = newWidth + 'px';
-            }
-        }
-        function stopResizeRight() {
-            document.removeEventListener('mousemove', resizeRight);
-            document.removeEventListener('mouseup', stopResizeRight);
-            resizerRight.classList.remove('resizing');
-        }
+        DOM.resizerRight.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isResizing = true;
+            currentResizer = 'right';
+            DOM.resizerRight.classList.add('resizing');
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
     }
     initResizers();
 
-
     // --- Layer Management ---
-
     function addLoadingLayer(prompt) {
-        const id = Date.now() + Math.random(); // Unique ID
+        const id = Date.now() + Math.random();
         const newLayer = {
-            id: id,
+            id,
             name: prompt,
-            prompt: prompt, // Store for regeneration
+            prompt,
             image: null,
             opacity: 100,
             visible: true,
@@ -182,7 +296,8 @@ document.addEventListener('DOMContentLoaded', () => {
             error: false
         };
         layers.push(newLayer);
-        renderLayerList();
+        window.workspaceLayers = layers;
+        scheduleLayerListRender();
         return id;
     }
 
@@ -197,11 +312,10 @@ document.addEventListener('DOMContentLoaded', () => {
             layer.image = img;
             layer.loading = false;
             layer.error = false;
-            
-            // Auto-select if it's the only one or user preference
+
             selectLayer(id);
-            renderLayerList();
-            render();
+            scheduleLayerListRender();
+            scheduleRender();
         };
         img.onerror = () => {
             markLayerAsError(layer, "Image Load Error");
@@ -209,23 +323,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function markLayerAsError(layer, msg) {
-        if(!layer.name.includes("(Failed)")) {
-             layer.name += " (Failed)";
+        if (!layer.name.includes("(Failed)")) {
+            layer.name += " (Failed)";
         }
         layer.loading = false;
         layer.error = true;
-        renderLayerList();
+        scheduleLayerListRender();
     }
-    
+
     function deleteLayer(id) {
         if (confirm("Delete this layer?")) {
+            const layer = layers.find(l => l.id === id);
+            if (layer && layer.image) {
+                layer.image = null; // Help GC
+            }
             layers = layers.filter(l => l.id !== id);
+            window.workspaceLayers = layers;
             if (activeLayerId === id) {
                 activeLayerId = null;
-                layerControls.style.display = 'none';
+                DOM.layerControls.style.display = 'none';
             }
-            renderLayerList();
-            render();
+            scheduleLayerListRender();
+            scheduleRender();
         }
     }
 
@@ -233,227 +352,253 @@ document.addEventListener('DOMContentLoaded', () => {
         const layer = layers.find(l => l.id === id);
         if (!layer) return;
 
-        // Reset state
         layer.loading = true;
         layer.error = false;
-        if(layer.name.includes("(Failed)")) {
+        if (layer.name.includes("(Failed)")) {
             layer.name = layer.name.replace(" (Failed)", "");
         }
-        
-        renderLayerList(); // Show spinner
 
-        // Call generation with existing ID
+        scheduleLayerListRender();
         await generateSingleLayer(layer.prompt, id);
     }
 
-    function renderLayerList() {
-        layerList.innerHTML = '';
-        if (layers.length === 0) {
-            layerList.innerHTML = '<div class="empty-state">No layers added.</div>';
-            layerControls.style.display = 'none';
-            return;
-        }
-        
-        layerControls.style.display = 'block';
+    // --- Optimized Layer List Rendering with DocumentFragment ---
+    let layerListRenderPending = false;
 
-        layers.forEach(layer => {
-            const el = document.createElement('div');
-            el.className = `layer-item ${layer.id === activeLayerId ? 'active' : ''}`;
-            
-            // Thumbnail Area
-            let thumbContent;
-            if (layer.loading) {
-                thumbContent = `<div class="mini-spinner"></div>`;
-            } else if (layer.image && !layer.error) {
-                thumbContent = `<img src="${layer.image.src}" class="layer-thumb" style="width:40px;height:40px;object-fit:cover;">`;
-            } else {
-                thumbContent = `<div class="layer-thumb" style="width:40px;height:40px;background:#330000;display:flex;align-items:center;justify-content:center;color:#ff5555;font-size:20px;">!</div>`;
-            }
-
-            // Thumbnail & Info Wrapper
-            const leftDiv = document.createElement('div');
-            leftDiv.style.display = 'flex';
-            leftDiv.style.alignItems = 'center';
-            leftDiv.style.flex = '1';
-            leftDiv.style.overflow = 'hidden';
-            
-            // Error Styling
-            let nameClass = "layer-name";
-            if (layer.error) nameClass += " error";
-
-            leftDiv.innerHTML = `
-                <div style="width:40px;height:40px;margin-right:10px;display:flex;align-items:center;justify-content:center;background:#000;border:1px solid ${layer.error ? '#ff5555' : '#555'};">
-                    ${thumbContent}
-                </div>
-                <div class="layer-info">
-                    <div class="${nameClass}">${layer.name}</div>
-                    <div class="layer-desc">${layer.loading ? 'Generating...' : (layer.error ? 'Generation Failed' : layer.opacity + '% Opacity')}</div>
-                </div>
-            `;
-            leftDiv.onclick = () => selectLayer(layer.id);
-
-            // Actions
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'layer-actions';
-            
-            // Always allow delete
-            
-            if (!layer.loading) {
-                // Regenerate Button (Replaces Magic Wand)
-                const btnRegen = document.createElement('button');
-                btnRegen.className = 'icon-btn';
-                btnRegen.innerHTML = ICON_REFRESH;
-                btnRegen.title = "Regenerate Layer";
-                btnRegen.onclick = (e) => {
-                    e.stopPropagation();
-                    regenerateLayer(layer.id);
-                };
-                actionsDiv.appendChild(btnRegen);
-
-                if (!layer.error) {
-                    // Eye Button
-                    const btnEye = document.createElement('button');
-                    btnEye.className = 'icon-btn';
-                    btnEye.innerHTML = layer.visible ? ICON_EYE_OPEN : ICON_EYE_CLOSED;
-                    btnEye.title = layer.visible ? "Hide Layer" : "Show Layer";
-                    
-                    btnEye.onclick = (e) => {
-                        e.stopPropagation(); 
-                        layer.visible = !layer.visible;
-                        btnEye.innerHTML = layer.visible ? ICON_EYE_OPEN : ICON_EYE_CLOSED;
-                        btnEye.title = layer.visible ? "Hide Layer" : "Show Layer";
-                        render();
-                    };
-                    actionsDiv.appendChild(btnEye);
-                }
-            }
-            
-            // Delete Button (Always visible unless loading? Or allow cancel loading? Simpler to hide during load)
-            if (!layer.loading) {
-                const btnTrash = document.createElement('button');
-                btnTrash.className = 'icon-btn delete-btn';
-                btnTrash.innerHTML = ICON_TRASH;
-                btnTrash.title = "Delete Layer";
-                btnTrash.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteLayer(layer.id);
-                };
-                actionsDiv.appendChild(btnTrash);
-            }
-
-            el.appendChild(leftDiv);
-            el.appendChild(actionsDiv);
-            
-            layerList.appendChild(el);
+    function scheduleLayerListRender() {
+        if (layerListRenderPending) return;
+        layerListRenderPending = true;
+        requestAnimationFrame(() => {
+            renderLayerList();
+            layerListRenderPending = false;
         });
     }
+
+    function createLayerElement(layer) {
+        const el = document.createElement('div');
+        el.className = `layer-item${layer.id === activeLayerId ? ' active' : ''}`;
+        el.dataset.layerId = layer.id;
+
+        // Thumbnail
+        let thumbContent;
+        if (layer.loading) {
+            thumbContent = '<div class="mini-spinner"></div>';
+        } else if (layer.image && !layer.error) {
+            thumbContent = `<img src="${layer.image.src}" class="layer-thumb" loading="lazy">`;
+        } else {
+            thumbContent = '<div class="layer-thumb layer-thumb-error">!</div>';
+        }
+
+        const nameClass = layer.error ? "layer-name error" : "layer-name";
+        const statusText = layer.loading ? 'Generating...' : (layer.error ? 'Generation Failed' : layer.opacity + '% Opacity');
+
+        el.innerHTML = `
+            <div class="layer-left">
+                <div class="layer-thumb-container${layer.error ? ' error' : ''}">${thumbContent}</div>
+                <div class="layer-info">
+                    <div class="${nameClass}">${layer.name}</div>
+                    <div class="layer-desc">${statusText}</div>
+                </div>
+            </div>
+            <div class="layer-actions">
+                ${!layer.loading ? `
+                    <button class="icon-btn" data-action="regenerate" title="Regenerate Layer">${ICONS.refresh}</button>
+                    ${!layer.error ? `<button class="icon-btn" data-action="visibility" title="${layer.visible ? 'Hide Layer' : 'Show Layer'}">${layer.visible ? ICONS.eyeOpen : ICONS.eyeClosed}</button>` : ''}
+                    <button class="icon-btn delete-btn" data-action="delete" title="Delete Layer">${ICONS.trash}</button>
+                ` : ''}
+            </div>
+        `;
+
+        return el;
+    }
+
+    function renderLayerList() {
+        if (layers.length === 0) {
+            DOM.layerList.innerHTML = '<div class="empty-state">No layers added.</div>';
+            DOM.layerControls.style.display = 'none';
+            return;
+        }
+
+        DOM.layerControls.style.display = 'block';
+
+        // Use DocumentFragment for batch DOM operations
+        const fragment = document.createDocumentFragment();
+
+        for (let i = 0; i < layers.length; i++) {
+            fragment.appendChild(createLayerElement(layers[i]));
+        }
+
+        DOM.layerList.innerHTML = '';
+        DOM.layerList.appendChild(fragment);
+    }
+
+    // --- Event Delegation for Layer Actions ---
+    DOM.layerList.addEventListener('click', (e) => {
+        const target = e.target;
+        const layerItem = target.closest('.layer-item');
+        if (!layerItem) return;
+
+        const layerId = parseFloat(layerItem.dataset.layerId);
+        const actionBtn = target.closest('[data-action]');
+
+        if (actionBtn) {
+            e.stopPropagation();
+            const action = actionBtn.dataset.action;
+
+            switch (action) {
+                case 'regenerate':
+                    regenerateLayer(layerId);
+                    break;
+                case 'visibility':
+                    const layer = layers.find(l => l.id === layerId);
+                    if (layer) {
+                        layer.visible = !layer.visible;
+                        actionBtn.innerHTML = layer.visible ? ICONS.eyeOpen : ICONS.eyeClosed;
+                        actionBtn.title = layer.visible ? 'Hide Layer' : 'Show Layer';
+                        scheduleRender();
+                    }
+                    break;
+                case 'delete':
+                    deleteLayer(layerId);
+                    break;
+            }
+        } else {
+            selectLayer(layerId);
+        }
+    });
 
     function selectLayer(id) {
         const layer = layers.find(l => l.id === id);
         if (layer) {
             activeLayerId = id;
             if (!layer.loading && !layer.error) {
-                opacitySlider.value = layer.opacity;
-                valOpacity.textContent = layer.opacity + '%';
-                layerControls.style.display = 'block';
+                DOM.opacitySlider.value = layer.opacity;
+                DOM.valOpacity.textContent = layer.opacity + '%';
+                DOM.layerControls.style.display = 'block';
             } else {
-                layerControls.style.display = 'none';
+                DOM.layerControls.style.display = 'none';
             }
         }
-        renderLayerList();
+        scheduleLayerListRender();
     }
 
     // --- Base Layer Toggle ---
-    if (baseLayerVisBtn) {
-        baseLayerVisBtn.onclick = () => {
+    if (DOM.baseLayerVisBtn) {
+        DOM.baseLayerVisBtn.onclick = () => {
             baseLayerVisible = !baseLayerVisible;
-            baseLayerVisBtn.innerHTML = baseLayerVisible ? ICON_EYE_OPEN : ICON_EYE_CLOSED;
-            baseLayerVisBtn.title = baseLayerVisible ? "Hide Base Image" : "Show Base Image";
-            
-            const track = document.getElementById('base-layer-track');
-            if (track) {
-                track.style.opacity = baseLayerVisible ? '1' : '0.5';
+            DOM.baseLayerVisBtn.innerHTML = baseLayerVisible ? ICONS.eyeOpen : ICONS.eyeClosed;
+            DOM.baseLayerVisBtn.title = baseLayerVisible ? "Hide Base Image" : "Show Base Image";
+
+            if (DOM.baseLayerTrack) {
+                DOM.baseLayerTrack.style.opacity = baseLayerVisible ? '1' : '0.5';
             }
-            render();
+            scheduleRender();
         };
     }
 
     // --- Event Listeners ---
 
+    // Zoom Controls
+    DOM.zoomInBtn.addEventListener('click', () => setZoom(zoomLevel + 0.1));
+    DOM.zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - 0.1));
+    DOM.zoomFitBtn.addEventListener('click', fitToScreen);
+
+    // Mouse Wheel Zoom (throttled)
+    const throttledZoom = throttle((delta) => {
+        setZoom(zoomLevel + delta);
+    }, 50);
+
+    DOM.canvasContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        throttledZoom(delta);
+    }, { passive: false });
+
+    // Preview Mode
+    if (DOM.btnViewMode) {
+        DOM.btnViewMode.addEventListener('click', togglePreviewMode);
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isPreviewMode) {
+            togglePreviewMode();
+        }
+    });
+
     // Save Image
-    saveImageBtn.addEventListener('click', () => {
+    DOM.saveImageBtn.addEventListener('click', () => {
         if (!baseImage.src) return;
         const link = document.createElement('a');
-        link.download = `composited_${new Date().getTime()}.png`;
-        link.href = canvas.toDataURL('image/png');
+        link.download = `composited_${Date.now()}.png`;
+        link.href = DOM.canvas.toDataURL('image/png');
         link.click();
     });
 
-    // Opacity
-    opacitySlider.addEventListener('input', (e) => {
+    // Opacity - Optimized with direct RAF
+    DOM.opacitySlider.addEventListener('input', (e) => {
         if (!activeLayerId) return;
-        const val = parseInt(e.target.value);
-        valOpacity.textContent = val + '%';
-        
+        const val = parseInt(e.target.value, 10);
+        DOM.valOpacity.textContent = val + '%';
+
         const layer = layers.find(l => l.id === activeLayerId);
         if (layer) {
             layer.opacity = val;
-            render();
+            scheduleRender();
         }
     });
 
     // Modals
-    addLayerBtn.addEventListener('click', () => {
-        modalPrompt.classList.add('active');
-        promptInput.focus();
+    DOM.addLayerBtn.addEventListener('click', () => {
+        DOM.modalPrompt.classList.add('active');
+        DOM.promptInput.focus();
     });
 
-    cancelPromptBtn.addEventListener('click', () => {
-        modalPrompt.classList.remove('active');
+    DOM.cancelPromptBtn.addEventListener('click', () => {
+        DOM.modalPrompt.classList.remove('active');
     });
 
     // API Key
-    btnApiKey.addEventListener('click', () => {
-        modalApi.classList.add('active');
+    DOM.btnApiKey.addEventListener('click', () => {
+        DOM.modalApi.classList.add('active');
     });
 
-    closeApiBtn.addEventListener('click', () => {
-        modalApi.classList.remove('active');
+    DOM.closeApiBtn.addEventListener('click', () => {
+        DOM.modalApi.classList.remove('active');
     });
 
-    saveApiBtn.addEventListener('click', () => {
-        apiKey = apiKeyInput.value;
+    DOM.saveApiBtn.addEventListener('click', () => {
+        apiKey = DOM.apiKeyInput.value;
         localStorage.setItem('gemini_api_key', apiKey);
-        modalApi.classList.remove('active');
+        DOM.modalApi.classList.remove('active');
         updateApiStatus();
         alert("API Key Saved!");
     });
 
     // System Prompt
-    btnSysPrompt.addEventListener('click', async () => {
-        modalSysPrompt.classList.add('active');
+    DOM.btnSysPrompt.addEventListener('click', async () => {
+        DOM.modalSysPrompt.classList.add('active');
         try {
             const res = await fetch('/system-prompt');
             const data = await res.json();
-            sysPromptInput.value = data.content;
+            DOM.sysPromptInput.value = data.content;
         } catch (e) {
-            sysPromptInput.value = "Error loading prompt.";
+            DOM.sysPromptInput.value = "Error loading prompt.";
         }
     });
 
-    closeSysBtn.addEventListener('click', () => {
-        modalSysPrompt.classList.remove('active');
+    DOM.closeSysBtn.addEventListener('click', () => {
+        DOM.modalSysPrompt.classList.remove('active');
     });
 
-    saveSysBtn.addEventListener('click', async () => {
-        const content = sysPromptInput.value;
+    DOM.saveSysBtn.addEventListener('click', async () => {
+        const content = DOM.sysPromptInput.value;
         try {
             await fetch('/system-prompt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content })
             });
-            modalSysPrompt.classList.remove('active');
+            DOM.modalSysPrompt.classList.remove('active');
             alert("System Prompt Saved");
         } catch (e) {
             alert("Error saving prompt.");
@@ -462,13 +607,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Prompt helpers
     window.insertPrompt = (text) => {
-        const curVal = promptInput.value;
-        promptInput.value = curVal ? curVal + ", " + text : text;
-        promptInput.focus();
+        const curVal = DOM.promptInput.value;
+        DOM.promptInput.value = curVal ? curVal + ", " + text : text;
+        DOM.promptInput.focus();
     };
 
-    // --- Generation Logic (Parallel Batch) ---
-
+    // --- Generation Logic ---
     async function generateSingleLayer(promptText, tempLayerId) {
         try {
             const formData = new FormData();
@@ -486,11 +630,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const errData = await response.json();
                     if (errData.error) errMsg = errData.error;
-                } catch(e) {}
-                
+                } catch (e) {}
+
                 if (response.status === 401) {
-                     errMsg = "API Key Invalid or Missing. Please check API Settings.";
-                     modalApi.classList.add('active');
+                    errMsg = "API Key Invalid or Missing. Please check API Settings.";
+                    DOM.modalApi.classList.add('active');
                 }
                 throw new Error(errMsg);
             }
@@ -501,35 +645,40 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             console.error(err);
             const layer = layers.find(l => l.id === tempLayerId);
-            if(layer) {
+            if (layer) {
                 markLayerAsError(layer, err.message);
             }
         }
     }
 
-    generateConfirmBtn.addEventListener('click', async () => {
+    DOM.generateConfirmBtn.addEventListener('click', async () => {
         if (!apiKey) {
             alert("Please set your Google GenAI API Key in 'API Settings' first.");
-            modalApi.classList.add('active');
+            DOM.modalApi.classList.add('active');
             return;
         }
 
-        const rawInput = promptInput.value.trim();
+        const rawInput = DOM.promptInput.value.trim();
         if (!rawInput) {
             alert("Please enter a prompt.");
             return;
         }
 
-        modalPrompt.classList.remove('active');
-        promptInput.value = ''; 
-        
+        DOM.modalPrompt.classList.remove('active');
+        DOM.promptInput.value = '';
+
         const prompts = rawInput.split(/[,\n]+/).map(p => p.trim()).filter(p => p.length > 0);
 
         if (prompts.length === 0) return;
 
+        // Launch all generations in parallel
         prompts.forEach(pText => {
             const tempId = addLoadingLayer(pText);
             generateSingleLayer(pText, tempId);
         });
     });
+
+    // --- Window Resize Handler (debounced) ---
+    const debouncedFitToScreen = debounce(fitToScreen, 200);
+    window.addEventListener('resize', debouncedFitToScreen);
 });

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photo Editor - AI Lighting Compositor</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', path='css/photo-editor.css') }}?v={{ version }}"
+      onerror="this.onerror=null;this.href='../static/css/photo-editor.css';"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Store image filename from workspace if provided -->
+    <script>
+      const preloadImage = "{{ image|default('', true) }}";
+    </script>
+    <div class="editor-container">
+      <!-- Top Menu Bar -->
+      <header class="top-menu">
+        <div class="menu-left">
+          <div class="logo">📷 Photo Editor</div>
+          <div class="menu-item" onclick="window.location.href='/'">File</div>
+          <div class="menu-item" id="btn-undo" title="Undo (Ctrl+Z)">
+            ↶ Undo
+          </div>
+          <div class="menu-item" id="btn-redo" title="Redo (Ctrl+Y)">
+            ↷ Redo
+          </div>
+        </div>
+        <div class="menu-right">
+          <button class="export-btn" id="btn-export">💾 Export Image</button>
+        </div>
+      </header>
+
+      <div class="main-area">
+        <!-- Left Toolbar -->
+        <aside class="toolbar" id="toolbar">
+          <div class="tool-group">
+            <button class="tool-btn active" data-tool="move" title="Move (V)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M13 6v5h5V7.75L22.25 12 18 16.25V13h-5v5h3.25L12 22.25 7.75 18H11v-5H6v3.25L1.75 12 6 7.75V11h5V6H7.75L12 1.75 16.25 6H13z"
+                />
+              </svg>
+              <span class="tool-label">Move</span>
+            </button>
+            <button class="tool-btn" data-tool="crop" title="Crop (C)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M17 15h2V7a2 2 0 0 0-2-2H9v2h8v8zM7 17V1H5v4H1v2h4v10a2 2 0 0 0 2 2h10v4h2v-4h4v-2H7z"
+                />
+              </svg>
+              <span class="tool-label">Crop</span>
+            </button>
+            <button class="tool-btn" data-tool="resize" title="Resize (R)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M21 15h2v6h-6v-2h2.59L17 16.41 18.41 15 21 17.59V15zM3 15v2.59L5.59 15 7 16.41 4.41 19H7v2H1v-6h2zm18-6V6.41L18.41 9 17 7.59 19.59 5H17V3h6v6h-2zM5.59 9 3 6.41V9H1V3h6v2H4.41L7 7.59 5.59 9z"
+                />
+              </svg>
+              <span class="tool-label">Resize</span>
+            </button>
+          </div>
+
+          <div class="tool-divider"></div>
+
+          <div class="tool-group">
+            <button class="tool-btn" data-tool="brush" title="Brush (B)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92 1.22 2.49 2 4 2 2.21 0 4-1.79 4-4 0-1.66-1.34-3-3-3zm13.71-9.37-1.34-1.34a.996.996 0 0 0-1.41 0L9 12.25 11.75 15l8.96-8.96a.996.996 0 0 0 0-1.41z"
+                />
+              </svg>
+              <span class="tool-label">Brush</span>
+            </button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="m16.24 3.56 4.95 4.94c.78.79.78 2.05 0 2.84L12 20.53a4.01 4.01 0 0 1-2.83 1.17H4v-2h5.17c.53 0 1.04-.21 1.41-.59l2.83-2.82-4.24-4.24L6 15.17l-1.41-1.41 7.07-7.07-2.83-2.83 1.41-1.41 2.83 2.83L15.24 3.1a1.993 1.993 0 0 1 2.83 0l-1.83 1.83zm1.77 6.36L14.59 6.5l-3.54 3.54 3.42 3.42 3.54-3.54z"
+                />
+              </svg>
+              <span class="tool-label">Eraser</span>
+            </button>
+            <button class="tool-btn" data-tool="fill" title="Fill (G)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5zM5.21 10 10 5.21 14.79 10H5.21zM16.56 8.94 10 2.39 8.56 3.8l1.39 1.4-6.01 6.01c-.78.78-.78 2.05 0 2.83l5.56 5.56c.39.39.9.59 1.41.59s1.02-.2 1.41-.59l5.24-5.24c.78-.78.78-2.05 0-2.83l-1-1.01z"
+                />
+              </svg>
+              <span class="tool-label">Fill</span>
+            </button>
+          </div>
+
+          <div class="tool-divider"></div>
+
+          <div class="tool-group">
+            <button class="tool-btn" data-tool="text" title="Text (T)">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 4v3h5.5v12h3V7H19V4H5z" />
+              </svg>
+              <span class="tool-label">Text</span>
+            </button>
+            <button class="tool-btn" data-tool="shapes" title="Shapes (U)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
+                />
+              </svg>
+              <span class="tool-label">Shapes</span>
+            </button>
+          </div>
+
+          <div class="tool-divider"></div>
+
+          <div class="tool-group">
+            <button class="tool-btn" data-tool="adjust" title="Adjustments (A)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"
+                />
+              </svg>
+              <span class="tool-label">Adjust</span>
+            </button>
+            <button class="tool-btn" data-tool="filters" title="Filters (F)">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M19.8 10.7 4.2 5l-.7 1.9L17.6 12H5c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5.5c0-.8-.5-1.6-1.2-1.8zM7 17c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1zm3 0c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1z"
+                />
+              </svg>
+              <span class="tool-label">Filters</span>
+            </button>
+            <button
+              class="tool-btn"
+              data-tool="bg-remove"
+              title="Remove Background"
+            >
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31A7.902 7.902 0 0 1 12 20zm6.31-3.1L7.1 5.69A7.902 7.902 0 0 1 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"
+                />
+              </svg>
+              <span class="tool-label">BG Remove</span>
+            </button>
+          </div>
+
+          <div class="tool-divider"></div>
+
+          <div class="tool-group">
+            <button
+              class="tool-btn"
+              data-tool="rotate-left"
+              title="Rotate Left"
+            >
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M7.11 8.53 5.7 7.11A7.942 7.942 0 0 1 12 4c4.42 0 8 3.58 8 8s-3.58 8-8 8c-3.24 0-6.02-1.94-7.27-4.72l1.85-.75C7.51 16.73 9.57 18 12 18c3.31 0 6-2.69 6-6s-2.69-6-6-6c-1.98 0-3.73.97-4.83 2.47L9 10l-4-1v4h2.11z"
+                />
+              </svg>
+              <span class="tool-label">↺ Rotate</span>
+            </button>
+            <button
+              class="tool-btn"
+              data-tool="rotate-right"
+              title="Rotate Right"
+            >
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M15.55 5.55 11 1v3.07a8 8 0 1 0 7.95 8.43h-2.02c-.2 2.7-2.44 4.87-5.18 4.98-2.92.12-5.41-2.2-5.41-5.13 0-2.73 2.14-4.97 4.85-5.13V4c3.62.09 6.66 2.55 7.36 6h2.02A9.99 9.99 0 0 0 11 1v3.07c1.68.2 3.22.97 4.41 2.13l.14.35z"
+                />
+              </svg>
+              <span class="tool-label">Rotate ↻</span>
+            </button>
+            <button class="tool-btn" data-tool="flip-h" title="Flip Horizontal">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"
+                />
+              </svg>
+              <span class="tool-label">Flip H</span>
+            </button>
+            <button class="tool-btn" data-tool="flip-v" title="Flip Vertical">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M3 15v2h2v-2H3zm0 4v2h2v-2H3zM3 7v2h2V7H3zm16 0v2h2V7h-2zM3 11v2h2v-2H3zm0-8c-1.1 0-2 .9-2 2h2V3zm8 18h2v-2h-2v2zm0-16h2V3h-2v2zm0 8h2v-2h-2v2zm8 8v-2h-2v2h2zm0-4v-2h-2v2h2zm0-12V3c-1.1 0-2 .9-2 2h2zm0 4V7h-2v2h2zm-4 14h2v-2h-2v2zM7 21h2v-2H7v2zm8-18h2V1h-2v2z"
+                />
+              </svg>
+              <span class="tool-label">Flip V</span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- Canvas Area -->
+        <main class="canvas-area">
+          <div class="canvas-wrapper" id="canvas-wrapper">
+            <canvas id="main-canvas"></canvas>
+            <div class="crop-overlay" id="crop-overlay" style="display: none">
+              <div class="crop-handles">
+                <div class="crop-handle nw"></div>
+                <div class="crop-handle ne"></div>
+                <div class="crop-handle sw"></div>
+                <div class="crop-handle se"></div>
+              </div>
+            </div>
+            <!-- Text Tool Overlay -->
+            <div id="text-overlay-layer"></div>
+          </div>
+          <div class="canvas-controls">
+            <button class="zoom-btn" id="zoom-out" title="Zoom Out">−</button>
+            <span class="zoom-level" id="zoom-level">100%</span>
+            <button class="zoom-btn" id="zoom-in" title="Zoom In">+</button>
+            <button class="zoom-btn" id="zoom-fit" title="Fit to Screen">
+              ⊡
+            </button>
+          </div>
+
+          <!-- Drop Zone Overlay -->
+          <div class="drop-zone" id="drop-zone">
+            <div class="drop-content">
+              <div class="drop-icon">📁</div>
+              <h2>Drop Image Here</h2>
+              <p>or click to browse</p>
+              <input type="file" id="file-input" accept="image/*" hidden />
+            </div>
+          </div>
+        </main>
+
+        <!-- Right Panel -->
+        <aside class="properties-panel" id="properties-panel">
+          <!-- Tool Options Panel -->
+          <div class="panel-section" id="tool-options">
+            <div class="panel-header">Tool Options</div>
+            <div class="panel-content" id="tool-options-content">
+              <p class="hint-text">Select a tool to see options</p>
+            </div>
+          </div>
+
+          <!-- Brush Options (hidden by default) -->
+          <div
+            class="panel-section tool-panel"
+            id="brush-options"
+            style="display: none"
+          >
+            <div class="panel-header">Brush Settings</div>
+            <div class="panel-content">
+              <div class="control-row">
+                <label>Size</label>
+                <input
+                  type="range"
+                  id="brush-size"
+                  min="1"
+                  max="100"
+                  value="10"
+                />
+                <span class="value-display" id="brush-size-val">10px</span>
+              </div>
+              <div class="control-row">
+                <label>Opacity</label>
+                <input
+                  type="range"
+                  id="brush-opacity"
+                  min="0"
+                  max="100"
+                  value="100"
+                />
+                <span class="value-display" id="brush-opacity-val">100%</span>
+              </div>
+              <div class="control-row">
+                <label>Hardness</label>
+                <input
+                  type="range"
+                  id="brush-hardness"
+                  min="0"
+                  max="100"
+                  value="100"
+                />
+                <span class="value-display" id="brush-hardness-val">100%</span>
+              </div>
+              <div class="control-row color-row">
+                <label>Color</label>
+                <input type="color" id="brush-color" value="#e94560" />
+                <span class="color-hex" id="brush-color-hex">#e94560</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resize Options -->
+          <div
+            class="panel-section tool-panel"
+            id="resize-options"
+            style="display: none"
+          >
+            <div class="panel-header">Resize Image</div>
+            <div class="panel-content">
+              <div class="control-row">
+                <label>Width</label>
+                <input
+                  type="number"
+                  id="resize-width"
+                  class="num-input"
+                  value="0"
+                />
+                <span class="unit">px</span>
+              </div>
+              <div class="control-row">
+                <label>Height</label>
+                <input
+                  type="number"
+                  id="resize-height"
+                  class="num-input"
+                  value="0"
+                />
+                <span class="unit">px</span>
+              </div>
+              <div class="control-row checkbox-row">
+                <input type="checkbox" id="resize-lock" checked />
+                <label for="resize-lock">🔗 Lock Aspect Ratio</label>
+              </div>
+              <button class="action-btn" id="apply-resize">Apply Resize</button>
+            </div>
+          </div>
+
+          <!-- Crop Options -->
+          <div
+            class="panel-section tool-panel"
+            id="crop-options"
+            style="display: none"
+          >
+            <div class="panel-header">Crop Settings</div>
+            <div class="panel-content">
+              <div class="control-row">
+                <label>Aspect Ratio</label>
+                <select id="crop-ratio" class="select-input">
+                  <option value="free">Free</option>
+                  <option value="1:1">1:1 Square</option>
+                  <option value="4:3">4:3</option>
+                  <option value="16:9">16:9</option>
+                  <option value="3:2">3:2</option>
+                </select>
+              </div>
+              <button class="action-btn" id="apply-crop">Apply Crop</button>
+              <button class="action-btn secondary" id="cancel-crop">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <!-- Adjustments Panel -->
+          <div
+            class="panel-section tool-panel"
+            id="adjust-options"
+            style="display: none"
+          >
+            <div class="panel-header">Adjustments</div>
+            <div class="panel-content">
+              <div class="control-row">
+                <label>Brightness</label>
+                <input
+                  type="range"
+                  id="adj-brightness"
+                  min="-100"
+                  max="100"
+                  value="0"
+                />
+                <span class="value-display" id="adj-brightness-val">0</span>
+              </div>
+              <div class="control-row">
+                <label>Contrast</label>
+                <input
+                  type="range"
+                  id="adj-contrast"
+                  min="-100"
+                  max="100"
+                  value="0"
+                />
+                <span class="value-display" id="adj-contrast-val">0</span>
+              </div>
+              <div class="control-row">
+                <label>Saturation</label>
+                <input
+                  type="range"
+                  id="adj-saturation"
+                  min="-100"
+                  max="100"
+                  value="0"
+                />
+                <span class="value-display" id="adj-saturation-val">0</span>
+              </div>
+              <div class="control-row">
+                <label>Exposure</label>
+                <input
+                  type="range"
+                  id="adj-exposure"
+                  min="-100"
+                  max="100"
+                  value="0"
+                />
+                <span class="value-display" id="adj-exposure-val">0</span>
+              </div>
+              <div class="control-row">
+                <label>Hue Rotate</label>
+                <input type="range" id="adj-hue" min="0" max="360" value="0" />
+                <span class="value-display" id="adj-hue-val">0°</span>
+              </div>
+              <button class="action-btn" id="apply-adjustments">Apply</button>
+              <button class="action-btn secondary" id="reset-adjustments">
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <!-- Filters Panel -->
+          <div
+            class="panel-section tool-panel"
+            id="filters-options"
+            style="display: none"
+          >
+            <div class="panel-header">Filters</div>
+            <div class="panel-content">
+              <div class="filter-grid">
+                <button class="filter-btn" data-filter="none">None</button>
+                <button class="filter-btn" data-filter="grayscale">
+                  Grayscale
+                </button>
+                <button class="filter-btn" data-filter="sepia">Sepia</button>
+                <button class="filter-btn" data-filter="invert">Invert</button>
+                <button class="filter-btn" data-filter="blur">Blur</button>
+                <button class="filter-btn" data-filter="sharpen">
+                  Sharpen
+                </button>
+                <button class="filter-btn" data-filter="vintage">
+                  Vintage
+                </button>
+                <button class="filter-btn" data-filter="cool">Cool</button>
+                <button class="filter-btn" data-filter="warm">Warm</button>
+              </div>
+              <div
+                class="control-row"
+                id="filter-intensity-row"
+                style="display: none"
+              >
+                <label>Intensity</label>
+                <input
+                  type="range"
+                  id="filter-intensity"
+                  min="0"
+                  max="100"
+                  value="100"
+                />
+                <span class="value-display" id="filter-intensity-val"
+                  >100%</span
+                >
+              </div>
+              <button class="action-btn" id="apply-filter">Apply Filter</button>
+            </div>
+          </div>
+
+          <!-- Text Options -->
+          <div
+            class="panel-section tool-panel"
+            id="text-options"
+            style="display: none"
+          >
+            <div class="panel-header">Text Settings</div>
+            <div class="panel-content">
+              <div class="control-row">
+                <label>Text</label>
+                <input
+                  type="text"
+                  id="text-input"
+                  class="text-input"
+                  placeholder="Enter text..."
+                />
+              </div>
+              <div class="control-row">
+                <label>Font Size</label>
+                <input
+                  type="range"
+                  id="text-size"
+                  min="12"
+                  max="200"
+                  value="48"
+                />
+                <span class="value-display" id="text-size-val">48px</span>
+              </div>
+              <div class="control-row">
+                <label>Font</label>
+                <select id="text-font" class="select-input">
+                  <option value="Inter">Inter</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Courier New">Courier New</option>
+                  <option value="Impact">Impact</option>
+                </select>
+              </div>
+              <div class="control-row color-row">
+                <label>Color</label>
+                <input type="color" id="text-color" value="#ffffff" />
+                <span class="color-hex" id="text-color-hex">#ffffff</span>
+              </div>
+              <button class="action-btn" id="add-text">Add Text</button>
+            </div>
+          </div>
+
+          <!-- Layers Panel -->
+          <div class="panel-section">
+            <div class="panel-header">Layers</div>
+            <div class="panel-content">
+              <div class="layer-list" id="layer-list">
+                <!-- Layers will be added dynamically -->
+              </div>
+              <button class="action-btn" id="add-layer-btn">+ Add Layer</button>
+              <button class="action-btn secondary" id="flatten-layers-btn">Flatten All</button>
+            </div>
+          </div>
+
+          <!-- Workspace Integration -->
+          <div class="panel-section">
+            <div class="panel-header">Workspace</div>
+            <div class="panel-content">
+              <button class="action-btn" id="send-to-workspace-btn">↩ Send to Workspace</button>
+            </div>
+          </div>
+
+          <!-- History Panel -->
+          <div class="panel-section">
+            <div class="panel-header">History</div>
+            <div class="panel-content history-list" id="history-list">
+              <div class="history-item active">Original</div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Status Bar -->
+      <footer class="status-bar">
+        <div class="status-left">
+          <span id="status-text">Ready</span>
+        </div>
+        <div class="status-center">
+          <span id="image-dimensions">No image loaded</span>
+        </div>
+        <div class="status-right">
+          <span id="cursor-pos">X: 0, Y: 0</span>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-backdrop" id="modal-export" style="display: none">
+      <div class="modal">
+        <div class="modal-header">Export Image</div>
+        <div class="modal-body">
+          <div class="control-row">
+            <label>Format</label>
+            <select id="export-format" class="select-input">
+              <option value="png">PNG (Lossless)</option>
+              <option value="jpeg">JPEG (Compressed)</option>
+              <option value="webp">WebP (Modern)</option>
+            </select>
+          </div>
+          <div class="control-row" id="quality-row">
+            <label>Quality</label>
+            <input
+              type="range"
+              id="export-quality"
+              min="10"
+              max="100"
+              value="92"
+            />
+            <span class="value-display" id="export-quality-val">92%</span>
+          </div>
+          <div class="control-row">
+            <label>Filename</label>
+            <input
+              type="text"
+              id="export-filename"
+              class="text-input"
+              value="edited-image"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="action-btn secondary" id="cancel-export">
+            Cancel
+          </button>
+          <button class="action-btn" id="confirm-export">Download</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="{{ url_for('static', path='js/photo-editor.js') }}?v={{ version }}" onerror="this.onerror=null;this.src='../static/js/photo-editor.js';"></script>
+  </body>
+</html>

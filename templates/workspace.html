@@ -4,8 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Lighting Compositor - Workspace</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{{ url_for('static', path='css/style.css') }}?v={{ version }}" as="style">
+    <link rel="preload" href="{{ url_for('static', path='js/main.js') }}?v={{ version }}" as="script">
+
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v={{ version }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Inline critical styles for faster paint -->
+    <style>
+        body { background-color: #1e1e1e; color: #cccccc; }
+        .app-container { display: flex; flex-direction: column; height: 100vh; }
+    </style>
 </head>
 <body>
     <!-- Store filename for JS -->
@@ -17,7 +33,7 @@
         <!-- Top Menu Bar -->
         <header class="top-bar">
             <div class="menu-item" onclick="window.location.href='/'">File</div>
-            <div class="menu-item">View</div>
+            <div class="menu-item" id="btn-view-mode">View</div>
             <div class="menu-item">Render</div>
             <div class="menu-item" id="btn-sys-prompt">System Prompt</div>
             <div class="menu-item" id="btn-api-key">API Settings</div>
@@ -28,11 +44,18 @@
             <!-- Left Panel (Controls) -->
             <aside class="left-panel" id="left-panel">
                 <div class="resizer resizer-left" id="resizer-left"></div>
-                
+
                 <div class="panel-section">
                     <div class="panel-header">AI Controls</div>
                     <div class="panel-content">
                         <button id="add-layer-btn" class="primary-btn">+ Add Layer</button>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-header">Photo Editor</div>
+                    <div class="panel-content">
+                        <button id="open-editor-btn" class="primary-btn" onclick="openPhotoEditor()">✏️ Edit Image</button>
                     </div>
                 </div>
 
@@ -42,20 +65,24 @@
                         <button id="save-image-btn" class="secondary-btn">Save Image</button>
                     </div>
                 </div>
-
-
-
             </aside>
 
             <!-- Main Preview Canvas -->
             <main class="viewport">
-                <div class="canvas-container">
+                <div class="canvas-container" id="canvas-container">
                     <canvas id="main-canvas"></canvas>
+                </div>
+                <!-- Zoom Controls - Photo Editor Style -->
+                <div class="canvas-controls">
+                    <button class="zoom-btn" id="zoom-out-btn" title="Zoom Out">−</button>
+                    <span class="zoom-level" id="zoom-level-disp">100%</span>
+                    <button class="zoom-btn" id="zoom-in-btn" title="Zoom In">+</button>
+                    <button class="zoom-btn" id="zoom-fit-btn" title="Fit to Screen">⊡</button>
                 </div>
             </main>
 
             <!-- Right Panel (Layers / Previews) -->
-             <aside class="right-panel" id="right-panel">
+            <aside class="right-panel" id="right-panel">
                 <div class="resizer resizer-right" id="resizer-right"></div>
                 <div class="panel-section">
                     <div class="panel-header">Generated Layers</div>
@@ -63,8 +90,8 @@
                         <div class="empty-state">No layers added.</div>
                     </div>
                 </div>
-                
-                <!-- Opacity Control (Moved here) -->
+
+                <!-- Opacity Control -->
                 <div class="panel-section" id="layer-controls" style="display:none;">
                     <div class="panel-header">Layer Adjustments</div>
                     <div class="panel-content">
@@ -92,7 +119,7 @@
     </div>
 
     <!-- Modals -->
-    
+
     <!-- API Key Modal -->
     <div class="modal-backdrop" id="modal-api">
         <div class="modal">
@@ -150,6 +177,81 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', path='js/main.js') }}"></script>
+    <script>
+        // Global function to export and open photo editor
+        window.openPhotoEditor = function() {
+            if (!uploadedFilename) {
+                alert("No filename found. Please upload an image first.");
+                return;
+            }
+
+            // SMART EDIT LOGIC:
+            // If no layers are generated, just edit the original base image.
+            if (!window.workspaceLayers || window.workspaceLayers.length === 0) {
+                window.location.href = '/photo-editor?image=' + encodeURIComponent(uploadedFilename);
+                return;
+            }
+
+            // If layers exist, we must save the composite to edit the full result.
+            const canvas = document.getElementById('main-canvas');
+            const fallbackUrl = '/photo-editor?image=' + encodeURIComponent(uploadedFilename);
+
+            if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                window.location.href = fallbackUrl;
+                return;
+            }
+
+            // UI Feedback
+            const btn = document.getElementById('open-editor-btn');
+            const originalText = btn ? btn.innerText : 'Edit Image';
+            if (btn) {
+                btn.innerText = 'Saving...';
+                btn.disabled = true;
+            }
+            document.body.style.cursor = 'wait';
+
+            try {
+                canvas.toBlob(async (blob) => {
+                    if (!blob || blob.size === 0) {
+                        window.location.href = fallbackUrl;
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('file', blob, uploadedFilename);
+
+                    try {
+                        const response = await fetch('/api/save-composite', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            window.location.href = '/photo-editor?image=' + encodeURIComponent(data.filename);
+                        } else {
+                            window.location.href = fallbackUrl;
+                        }
+                    } catch (e) {
+                        window.location.href = fallbackUrl;
+                    } finally {
+                        if (btn) {
+                            btn.innerText = originalText;
+                            btn.disabled = false;
+                        }
+                        document.body.style.cursor = 'default';
+                    }
+                }, 'image/png');
+            } catch (e) {
+                if (btn) {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+                document.body.style.cursor = 'default';
+                window.location.href = fallbackUrl;
+            }
+        };
+    </script>
+    <script src="{{ url_for('static', path='js/main.js') }}?v={{ version }}" defer></script>
 </body>
 </html>
